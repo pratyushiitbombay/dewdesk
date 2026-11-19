@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dewdesk: live video wallpapers for your Mac</title>
+<meta name="description" content="Free menu bar app for Macs with Apple silicon: live video wallpapers, real-time weather effects, Lock Screen videos and a little dewdrop pet.">
+<meta property="og:title" content="Dewdesk: your desktop, alive">
+<meta property="og:description" content="Live video wallpapers, real-time effects, Lock Screen videos and a desktop pet. Free for Macs with Apple silicon.">
+<meta property="og:image" content="https://pratyushiitbombay.github.io/dewdesk/img/hero.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="img/icon-light.png">
+<link rel="apple-touch-icon" href="img/icon-light.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Fredoka:wght@500;600;700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one calm column at dusk. Hero over a soft evening-sky glow, the desktop shot framed like a Mac display with
+   Dewy walking on its edge; feature tour, install steps, privacy, credits. Ideas panel toggles each extra (mockup only). */
+:root {
+  /* Dusk palette (user pick 2026-11-19): lilac and plum from the icon's evening sky */
+  --bg:#F6F2FA; --surface:#FFFFFF; --ink:#2A1D3F; --muted:#6C5E82; --line:#E6DDF0; --dew:#7A55D3; --dew-soft:#EEE6FB;
+  --blush:#E77A9B; --moon:#E9B949; --bezel:#D9CDEF; --glow-a:rgba(183,155,255,.45); --glow-b:rgba(231,122,155,.28);
+  --shadow:0 30px 60px -30px rgba(60,30,100,.35); --glass:rgba(246,242,250,.72);
+  --f-display: "Fredoka", "Avenir Next Rounded", "Nunito", system-ui, sans-serif;
+  --f-body: "Figtree", -apple-system, "Helvetica Neue", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#161022; --surface:#211936; --ink:#F1EAFB; --muted:#A99BC2; --line:#33284B; --dew:#B79BFF; --dew-soft:#2C2148;
+  --blush:#F29AB3; --moon:#F5CF6B; --bezel:#3E3160; --glow-a:rgba(140,100,255,.35); --glow-b:rgba(242,154,179,.18);
+  --shadow:0 30px 70px -30px rgba(0,0,0,.8); --glass:rgba(22,16,34,.7); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg:#161022; --surface:#211936; --ink:#F1EAFB; --muted:#A99BC2; --line:#33284B; --dew:#B79BFF; --dew-soft:#2C2148;
+  --blush:#F29AB3; --moon:#F5CF6B; --bezel:#3E3160; --glow-a:rgba(140,100,255,.35); --glow-b:rgba(242,154,179,.18);
+  --shadow:0 30px 70px -30px rgba(0,0,0,.8); --glass:rgba(22,16,34,.7); color-scheme: dark }
+body:not(.fx-round) { --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 400 17px/1.6 var(--f-body); overflow-x: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1080px; margin: 0 auto; position: relative }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.08 }
+h2 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 600; letter-spacing: -.01em }
+body:not(.fx-round) h2 { font-weight: 800; letter-spacing: -.02em }
+h3 { font-size: 22px; font-weight: 600 }
+p { margin: 0 }
+a { color: var(--dew) }
+a:focus-visible, button:focus-visible, input:focus-visible + span { outline: 3px solid var(--dew); outline-offset: 3px; border-radius: 8px }
+.muted { color: var(--muted) }
+.mono { font-family: var(--f-mono); font-size: 13px; letter-spacing: .02em }
+.icon-dark { display: none }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .icon-light { display: none } :root:not([data-theme="light"]) .icon-dark { display: inline } }
+:root[data-theme="dark"] .icon-light { display: none } :root[data-theme="dark"] .icon-dark { display: inline }
+canvas.pet { width: 48px; height: 58px; display: block; image-rendering: auto }
+
+/* sky behind the hero: glow always; aurora or fireflies canvas on top */
+.sky { position: absolute; left: 50%; top: 0; width: 100vw; height: 900px; transform: translateX(-50%); pointer-events: none; z-index: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent) }
+.sky .glow { position: absolute; inset: 0;
+  background: radial-gradient(60% 45% at 30% 18%, var(--glow-a), transparent 70%), radial-gradient(45% 40% at 75% 26%, var(--glow-b), transparent 70%) }
+.sky .moon { position: absolute; right: 12%; top: 90px; width: 26px; height: 26px; border-radius: 50%; background: var(--moon);
+  box-shadow: 0 0 40px 10px color-mix(in srgb, var(--moon) 45%, transparent) }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 24px; padding-block: 14px; position: relative; z-index: 4 }
+body.fx-glass .top { position: sticky; top: env(safe-area-inset-top, 0px); margin-inline: -16px; padding-inline: 16px; border-radius: 0 0 16px 16px }
+body.fx-glass .top::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--glass);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); border-bottom: 1px solid var(--line); opacity: 0; transition: opacity .25s }
+body.fx-glass.scrolled .top::before { opacity: 1 }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 22px var(--f-display); text-decoration: none; color: var(--ink) }
+.brand img { width: 34px; height: 34px }
+.top nav { display: flex; gap: 22px; margin-left: auto; font-size: 15px }
+.top nav a { color: var(--muted); text-decoration: none } .top nav a:hover { color: var(--ink) }
+@media (max-width: 640px) { .top nav { display: none } }
+
+/* hero */
+.hero { display: grid; justify-items: center; text-align: center; gap: 22px; padding-block: 48px 0; position: relative; z-index: 1 }
+.hero h1 { font-size: clamp(48px, 8.4vw, 92px); font-weight: 600; letter-spacing: -.02em }
+body:not(.fx-round) .hero h1 { font-weight: 800; letter-spacing: -.035em }
+.hero h1 em { font-style: normal; color: var(--dew) }
+body.fx-shiny .hero h1 em { background: linear-gradient(110deg, var(--dew) 35%, var(--blush) 46%, #fff 50%, var(--blush) 54%, var(--dew) 65%);
+  background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 5s ease-in-out infinite }
+@keyframes shine { 0% { background-position: 110% 0 } 60%, 100% { background-position: -40% 0 } }
+.hero h1 .w { display: inline-block }
+body.fx-blur .hero h1 .w { animation: blurIn .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i) * .14s) }
+@keyframes blurIn { from { filter: blur(12px); opacity: .15; transform: translateY(10px) } to { filter: none; opacity: 1; transform: none } }
+.hero .lede { max-width: 38em; font-size: 19px; color: var(--muted) }
+.cta { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: center; position: relative }
+.btn { position: relative; display: inline-flex; align-items: center; gap: 10px; font: 600 17px var(--f-body); text-decoration: none;
+  padding: 14px 24px; border-radius: 14px; background: var(--ink); color: var(--bg); transition: transform .15s; isolation: isolate }
+.btn:hover { transform: translateY(-2px) }
+.btn svg { width: 18px; height: 18px }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line) }
+@property --a { syntax: "<angle>"; initial-value: 0deg; inherits: false }
+body.fx-star .btn.main::before { content: ""; position: absolute; inset: -2px; border-radius: 16px; z-index: -1;
+  background: conic-gradient(from var(--a), transparent 0 62%, var(--blush) 75%, var(--dew) 85%, transparent 95%); animation: orbit 3.2s linear infinite }
+body.fx-star .btn.main::after { content: ""; position: absolute; inset: 0; border-radius: 14px; z-index: -1; background: var(--ink) }
+@keyframes orbit { to { --a: 360deg } }
+.facts { display: flex; gap: 8px 18px; flex-wrap: wrap; justify-content: center; color: var(--muted) }
+.facts span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--dew); margin-right: 8px; vertical-align: middle }
+
+/* the display frame */
+.display { position: relative; width: 100%; max-width: 980px; margin: 64px auto 0; padding: 14px 14px 0;
+  background: var(--bezel); border-radius: 26px 26px 0 0; box-shadow: var(--shadow) }
+.display img.shot { display: block; width: 100%; aspect-ratio: 3024 / 1964; border-radius: 14px 14px 0 0; object-fit: cover }
+.chin { height: 30px; background: var(--bezel); border-radius: 0 0 18px 18px; max-width: 980px; margin: 0 auto; box-shadow: var(--shadow); position: relative; z-index: 1 }
+.stand { width: 150px; height: 34px; margin: 0 auto; background: linear-gradient(var(--bezel), transparent); opacity: .7; clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%) }
+#heroPet { position: absolute; left: 0; bottom: calc(100% - 3px); cursor: pointer }
+.caption { font-size: 13px; margin-top: 10px; text-align: center }
+
+/* sections */
+section { padding-block: 80px; border-top: 1px solid var(--line); position: relative }
+.kicker { font: 500 12px var(--f-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--dew); margin-bottom: 10px }
+.sec-head { max-width: 640px; display: grid; gap: 12px; margin-bottom: 36px }
+body.fx-reveal .rise { transform: translateY(36px); opacity: .35 }
+body.fx-reveal .rise, body.fx-reveal .risen { transition: transform .9s cubic-bezier(.2,.7,.2,1), opacity .9s }
+
+/* logo loop of effect names */
+.loop { display: none; overflow: hidden; margin: 0 0 48px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent) }
+body.fx-loop .loop { display: block }
+.loop .track { display: flex; gap: 10px; width: max-content; animation: slide 38s linear infinite }
+.loop:hover .track { animation-play-state: paused }
+.loop span { font: 500 15px var(--f-display); padding: 8px 16px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap }
+.loop span b { color: var(--dew); font-weight: 600; margin-right: 6px }
+@keyframes slide { to { transform: translateX(-50%) } }
+
+.tour { display: grid; gap: 72px }
+.row { display: grid; grid-template-columns: 1fr 1.5fr; gap: 44px; align-items: center }
+.row:nth-child(even) { grid-template-columns: 1.5fr 1fr } .row:nth-child(even) .txt { order: 2 }
+.row .txt { display: grid; gap: 12px; min-width: 0 }
+.tilt { perspective: 900px; min-width: 0 }
+.tilt img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow);
+  transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; transform-style: preserve-3d; will-change: transform }
+.tilt:hover img { transform: scale(1.025); box-shadow: 0 40px 70px -30px rgba(60,30,100,.5) }
+body.fx-tilt .tilt:hover img { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.03); transition-duration: .12s }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px }
+.chips span { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--dew-soft); color: var(--ink) }
+@media (max-width: 760px) { .row, .row:nth-child(even) { grid-template-columns: 1fr } .row:nth-child(even) .txt { order: 0 } }
+
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 72px }
+.card { position: relative; display: grid; gap: 6px; align-content: start; min-width: 0; padding: 20px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line); overflow: hidden }
+.card::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--dew) 22%, transparent), transparent 70%) }
+body.fx-spot .card:hover::before { opacity: 1 }
+.card b { font: 600 17px var(--f-display) }
+.card p { font-size: 15px; color: var(--muted) }
+@media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr) } }
+@media (max-width: 460px) { .grid { grid-template-columns: 1fr } }
+
+/* install */
+.install { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; align-items: start }
+@media (max-width: 860px) { .install { grid-template-columns: 1fr } }
+ol.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; counter-reset: s }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start }
+ol.steps li::before { content: counter(s); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--dew-soft); color: var(--dew); font: 600 17px var(--f-display) }
+ol.steps strong { display: block; font-weight: 600 }
+.ui { font-family: var(--f-body); font-weight: 600; padding: 1px 7px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; font-size: 15px }
+.dialog-wrap { position: relative; justify-self: center; padding-top: 50px; width: 100%; max-width: 340px }
+.dialog { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px; display: grid; gap: 10px;
+  justify-items: center; text-align: center; box-shadow: var(--shadow) }
+.dialog img { width: 64px; height: 64px }
+.dialog b { font-size: 15px }
+.dialog p { font-size: 13px; color: var(--muted) }
+.dialog .btns { display: grid; gap: 6px; width: 100% }
+.dialog .btns span { font-size: 13px; padding: 6px; border-radius: 8px; background: var(--dew-soft) }
+.dialog .btns span.hi { background: var(--dew); color: var(--surface) }
+#sitPet { position: absolute; top: 4px; right: 34px }
+.why { margin-top: 26px; padding: 18px 20px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); font-size: 15px }
+.why b { font-family: var(--f-display); font-weight: 600 }
+body:not(.fx-dewy) .poses { display: none }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 48px }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr } }
+ul.plain { padding: 0; margin: 0; list-style: none; display: grid; gap: 12px }
+ul.plain li { padding-left: 22px; position: relative }
+ul.plain li::before { content: ""; position: absolute; left: 2px; top: .5em; width: 10px; height: 12px; background: var(--dew);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; clip-path: polygon(50% 0, 100% 55%, 100% 100%, 0 100%, 0 55%) }
+dl.req { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 10px 24px }
+dl.req dt { color: var(--muted) } dl.req dd { margin: 0; font-weight: 500 }
+.credits { display: grid; gap: 10px; font-size: 15px }
+.credits li { color: var(--muted) } .credits li b { color: var(--ink); font-weight: 600 }
+.credits ul { padding-left: 18px; margin: 0; display: grid; gap: 8px }
+
+footer { border-top: 1px solid var(--line); padding-block: 32px 48px; display: flex; gap: 16px; flex-wrap: wrap;
+  align-items: center; justify-content: space-between; font-size: 14px; color: var(--muted) }
+footer .who { display: flex; align-items: center; gap: 12px }
+footer .zz { font: 600 13px var(--f-display); color: var(--dew); margin-left: -8px; align-self: flex-start; animation: zz 2.4s ease-in-out infinite }
+@keyframes zz { 50% { transform: translateY(-5px); opacity: .5 } }
+body:not(.fx-dewy) footer .zz, body:not(.fx-dewy) #sleepPet { display: none }
+
+/* page texture: a fixed canvas behind everything (Night sky / Liquid / Dew on glass / None) */
+#texCv { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 0 }
+.wrap { position: relative; z-index: 1 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important }
+}
+</style>
+</head>
+<body class="fx-round fx-dewy fx-tilt fx-shiny fx-blur fx-star fx-glass fx-loop fx-spot fx-reveal bg-glow tex-dew">
+
+<canvas id="texCv" aria-hidden="true"></canvas>
+<div class="wrap">
+  <div class="sky" aria-hidden="true"><div class="glow"></div><div class="moon"></div></div>
+
+  <header class="top">
+    <a class="brand" href="#top"><img class="icon-light" src="img/icon-light.png" alt=""><img class="icon-dark" src="img/icon-dark.png" alt="">Dewdesk</a>
+    <nav><a href="#features">Features</a><a href="#install">Install</a><a href="#privacy">Privacy</a><a href="#credits">Credits</a></nav>
+  </header>
+
+  <div class="hero" id="top">
+    <h1><span class="w" style="--i:0">Your</span> <span class="w" style="--i:1">desktop,</span> <span class="w" style="--i:2"><em>alive.</em></span></h1>
+    <p class="lede">Live video wallpapers, real-time weather effects, a video on your Lock Screen and a little dewdrop
+      friend who walks along your windows. A free menu bar app for Macs with Apple silicon.</p>
+    <div class="cta">
+      <a class="btn main" id="dlBtn" href="https://github.com/pratyushiitbombay/dewdesk/releases/latest/download/Dewdesk.dmg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 10l6 6 6-6M5 21h14"/></svg>Download for Mac</a>
+      <a class="btn ghost" href="#install">How to open it</a>
+    </div>
+    <div class="facts"><span>Free</span><span>macOS 14 Sonoma or later</span><span>Apple silicon (M1 or later)</span><span class="mono">v0.1.0 · 7 MB</span></div>
+
+    <div class="display">
+      <img class="shot" src="img/hero.jpg" alt="A Mac desktop showing a starry ESO time-lapse with a green aurora effect drawn on top and Dewy standing on the hills">
+      <canvas class="pet" id="heroPet" width="96" height="116" title="Click Dewy" aria-label="Dewy, the desktop pet"></canvas>
+    </div>
+  </div>
+  <div class="chin"></div>
+  <div class="stand"></div>
+  <p class="caption muted">Paranal time-lapse by ESO/C. Malin, with the Northern Lights effect on top. Dewy is on the desktop, and another one walks along the top of the screen. Click it.</p>
+
+  <section id="features">
+    <div class="sec-head rv">
+      <div class="kicker">What it does</div>
+      <h2>Any video becomes your wallpaper</h2>
+      <p class="muted">It plays behind your icons, and pauses by itself when windows cover the desktop or your battery runs low.</p>
+    </div>
+    <div class="loop" aria-label="Effects in Dewdesk">
+      <div class="track">
+        <span><b>☔</b>Rain on Glass</span><span><b>❄</b>Snow</span><span><b>✦</b>Aurora</span><span><b>✧</b>Fireflies</span><span><b>❀</b>Petals</span><span><b>☁</b>Fog</span><span><b>ϟ</b>Lightning</span><span><b>○</b>Bubbles</span><span><b>✺</b>Bokeh</span><span><b>✾</b>Dandelion</span><span><b>❧</b>Leaves</span><span><b>⋆</b>Stars</span>
+        <span aria-hidden="true"><b>☔</b>Rain on Glass</span><span aria-hidden="true"><b>❄</b>Snow</span><span aria-hidden="true"><b>✦</b>Aurora</span><span aria-hidden="true"><b>✧</b>Fireflies</span><span aria-hidden="true"><b>❀</b>Petals</span><span aria-hidden="true"><b>☁</b>Fog</span><span aria-hidden="true"><b>ϟ</b>Lightning</span><span aria-hidden="true"><b>○</b>Bubbles</span><span aria-hidden="true"><b>✺</b>Bokeh</span><span aria-hidden="true"><b>✾</b>Dandelion</span><span aria-hidden="true"><b>❧</b>Leaves</span><span aria-hidden="true"><b>⋆</b>Stars</span>
+      </div>
+    </div>
+    <div class="tour">
+      <div class="row rv">
+        <div class="txt">
+          <h3>Weather, nature and light, drawn live</h3>
+          <p class="muted">Rain, snow, fog, lightning, petals, fireflies, aurora, bokeh and more. Pick a preset like Hanami,
+            Monsoon or Northern Lights, or tune every slider. Click the desktop to pop bubbles.</p>
+          <div class="chips"><span>Rain on Glass</span><span>Aurora</span><span>Fireflies</span><span>Snow</span><span>Petals</span></div>
+        </div>
+        <div class="tilt"><img src="img/05-effects.jpg" alt="Effects page with an aurora over the night sky and a list of weather, nature and light effects" loading="lazy"></div>
+      </div>
+      <div class="row rv">
+        <div class="txt">
+          <h3>Free 4K space videos, credits saved</h3>
+          <p class="muted">Browse NASA and ESO videos inside the app and download them in one click. Each video keeps its
+            own effects, fit and speed, plus the credit for where it came from.</p>
+        </div>
+        <div class="tilt"><img src="img/02-now-playing.jpg" alt="Now Playing page showing the current video, the queue of NASA and ESO videos, and fit settings" loading="lazy"></div>
+      </div>
+      <div class="row rv">
+        <div class="txt">
+          <h3>Your video on the Lock Screen</h3>
+          <p class="muted">Put any video from your library on the macOS Lock Screen, add your own text, and restyle the
+            Lock Screen clock. <span class="ui">Lock Now</span> lets you try it straight away.</p>
+        </div>
+        <div class="tilt"><img src="img/08-lock-screen-video.jpg" alt="Lock Screen Video page previewing a NASA ocean-currents map with the clock and text looks" loading="lazy"></div>
+      </div>
+      <div class="row rv">
+        <div class="txt">
+          <h3>A little friend on your desktop</h3>
+          <p class="muted">Dewy walks along the bottom of your screen, climbs your windows, sits, naps when you're away and
+            wakes up when you're back. Click to make it hop, stroke it for hearts, or pick it up and throw it.</p>
+          <div class="chips"><span>Click: jump</span><span>Stroke: hearts</span><span>Drag: pick up and throw</span></div>
+        </div>
+        <div class="tilt"><img src="img/07-desktop-pets.jpg" alt="Desktop Pets page with Dewy on the stage and in the Characters list" loading="lazy"></div>
+      </div>
+    </div>
+
+    <div class="grid rv">
+      <div class="card"><b>Add your own pets</b><p>Bring in more sprite pets with Add Pet or the Get Pets tab.</p></div>
+      <div class="card"><b>Screen saver</b><p>Your wallpaper as a screen saver, with a gently moving clock. It never locks your Mac.</p></div>
+      <div class="card"><b>Automation</b><p>Effects follow the time of day, the weather and the season.</p></div>
+      <div class="card"><b>Playlists</b><p>Different videos for morning, evening and night.</p></div>
+      <div class="card"><b>Every display</b><p>Same video on all, a different one on each, or one spanning across.</p></div>
+      <div class="card"><b>Battery smart</b><p>Best Look, Balanced or Battery Saver, and a battery rating on every video.</p></div>
+      <div class="card"><b>Photo to live</b><p>Turn a still photo into a slowly moving wallpaper with depth.</p></div>
+      <div class="card"><b>Menu bar panel</b><p>Play, pause, skip and switch effects without opening the window.</p></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="sec-head rv">
+      <div class="kicker">Install</div>
+      <h2>Opening Dewdesk the first time</h2>
+      <p class="muted">Dewdesk is a free hobby project and isn't signed with a paid Apple developer account, so macOS asks
+        you to approve it once. After that it opens normally.</p>
+    </div>
+    <div class="install rv">
+      <div>
+        <ol class="steps">
+          <li><div><strong>Download and install</strong><a href="https://github.com/pratyushiitbombay/dewdesk/releases/latest/download/Dewdesk.dmg">Download Dewdesk.dmg</a>, open it and drag Dewdesk into your Applications folder.</div></li>
+          <li><div><strong>Open it once</strong>Double-click Dewdesk. macOS says it can't check the app. Click <span class="ui">Done</span>, not Move to Trash.</div></li>
+          <li><div><strong>Allow it in System Settings</strong>Open <span class="ui">System Settings ▸ Privacy &amp; Security</span>,
+            scroll down to "Dewdesk was blocked to protect your Mac" and click <span class="ui">Open Anyway</span>.</div></li>
+          <li><div><strong>Confirm</strong>Click <span class="ui">Open Anyway</span> again and enter your Mac password. Dewy
+            hops onto your desktop and a short welcome helps you pick a first wallpaper.</div></li>
+        </ol>
+        <div class="why"><b>Is it safe?</b> The app has no accounts, ads or tracking. It only goes online for the things you ask it to do, listed under Privacy below.</div>
+      </div>
+      <div class="dialog-wrap">
+        <canvas class="pet poses" id="sitPet" width="96" height="116" aria-hidden="true"></canvas>
+        <div class="dialog" aria-label="Example of the macOS warning">
+          <img class="icon-light" src="img/icon-light.png" alt=""><img class="icon-dark" src="img/icon-dark.png" alt="">
+          <b>"Dewdesk" Not Opened</b>
+          <p>Apple could not verify "Dewdesk" is free of malware that may harm your Mac or compromise your privacy.</p>
+          <div class="btns"><span class="hi">Done</span><span>Move to Trash</span></div>
+          <p class="mono">What you'll see in step 2</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="two rv">
+      <div>
+        <div class="kicker">Privacy</div>
+        <h2 style="margin-bottom:22px">Your videos stay on your Mac</h2>
+        <ul class="plain">
+          <li>No accounts, analytics or tracking.</li>
+          <li>Weather, only if you set a city: the city name and rounded coordinates go to Open-Meteo.</li>
+          <li>Discover, only while you use it: searches go to NASA and ESO, and videos come from them.</li>
+          <li>Effects and pets read where windows are, never what's in them. No Screen Recording permission needed.</li>
+          <li>Calendar, only if you turn on the clock's calendar line. Events are read on your Mac and never sent.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="kicker">Requirements</div>
+        <h2 style="margin-bottom:22px">What you need</h2>
+        <dl class="req">
+          <dt>Mac</dt><dd>Apple silicon, M1 or later</dd>
+          <dt>macOS</dt><dd>14 Sonoma or later</dd>
+          <dt>Version</dt><dd class="mono">0.1.0</dd>
+          <dt>Price</dt><dd>Free</dd>
+          <dt>Support</dt><dd>A personal project, shared as is</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="credits">
+    <div class="rv">
+      <div class="kicker">Credits</div>
+      <h2 style="margin-bottom:22px">Videos on this page</h2>
+      <div class="credits">
+        <ul>
+          <li><b>Paranal time-lapse 2012w</b>, ESO/C. Malin (christophmalin.com), CC BY 4.0</li>
+          <li><b>Paranal time-lapse 2012t</b>, ESO/B. Tafreshi (twanight.org), CC BY 4.0</li>
+          <li><b>VLT time-lapse</b>, R. Wesson/ESO, CC BY 4.0</li>
+          <li><b>Ocean currents</b>, Greg Shirah, NASA Scientific Visualization Studio</li>
+          <li><b>Spinning Earth with clouds and night lights</b>, Kel Elkins, NASA Scientific Visualization Studio</li>
+        </ul>
+        <p class="muted">Dewy is original art made for Dewdesk. Some page effects are inspired by <a href="https://reactbits.dev" target="_blank" rel="noopener">React Bits</a>.
+          Dewdesk isn't affiliated with Apple, NASA or ESO.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="who"><canvas class="pet" id="sleepPet" width="96" height="116" aria-hidden="true"></canvas>
+      <span>Made by Pratyush as a portfolio project.</span></div>
+    <span><a href="https://github.com/pratyushiitbombay/dewdesk/releases">All releases</a> · <a href="#top">Back to top</a></span>
+  </footer>
+</div>
+
+
+
+
+<script>
+(function () {
+  var root = document.documentElement, body = document.body;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+
+  /* ---------- glass bar ---------- */
+  function onScroll() { body.classList.toggle('scrolled', scrollY > 30); }
+  addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
+  /* ---------- Dewy sprites ---------- */
+  var A = {"idle":{"d":150,"f":[[0,0],[120,0],[240,0],[360,0],[480,0],[600,0],[720,0],[840,0],[960,0],[1080,0],[1200,0],[1320,0],[1440,0],[1560,0],[1680,0],[1800,0]]},"idle_look":{"d":125,"f":[[0,145],[120,145],[240,145],[360,145],[480,145],[600,145],[720,145],[840,145],[960,145],[1080,145],[1200,145],[1320,145],[1440,145],[1560,145],[1680,145],[1800,145],[0,290],[120,290],[240,290],[360,290],[480,290],[600,290],[720,290],[840,290]]},"walk":{"d":75,"f":[[960,290],[1080,290],[1200,290],[1320,290],[1440,290],[1560,290],[1680,290],[1800,290]]},"sit":{"d":180,"f":[[0,435],[120,435],[240,435],[360,435],[480,435],[600,435],[720,435],[840,435],[960,435],[1080,435],[1200,435],[1320,435],[1440,435],[1560,435],[1680,435],[1800,435]]},"sleep":{"d":160,"f":[[0,580],[120,580],[240,580],[360,580],[480,580],[600,580],[720,580],[840,580],[960,580],[1080,580],[1200,580],[1320,580],[1440,580],[1560,580],[1680,580],[1800,580],[0,725],[120,725],[240,725],[360,725],[480,725],[600,725],[720,725],[840,725]]},"happy":{"d":83,"f":[[0,870],[120,870],[240,870],[360,870],[480,870],[600,870],[720,870],[840,870],[960,870],[1080,870],[1200,870],[1320,870]]},"air":{"d":60,"f":[[480,1015],[600,1015],[720,1015],[840,1015],[960,1015],[1080,1015]]}};
+  var sheet = new Image(); sheet.src = 'img/dewy-sheet.png';
+  function Pet(cv, anim) { this.cv = cv; this.ctx = cv.getContext('2d'); this.play(anim); }
+  Pet.prototype.play = function (name, then) { this.anim = name; this.i = 0; this.t = 0; this.then = then || null; };
+  Pet.prototype.step = function (dt) {
+    var a = A[this.anim]; this.t += dt;
+    while (this.t >= a.d) { this.t -= a.d; this.i++; if (this.i >= a.f.length) { if (this.then) { var n = this.then; this.then = null; this.play(n); a = A[this.anim]; } else this.i = 0; } }
+    if (!sheet.complete) return; var f = a.f[this.i]; this.ctx.clearRect(0, 0, 96, 116); this.ctx.drawImage(sheet, f[0], f[1], 120, 145, 0, 0, 96, 116);
+  };
+  var hero = new Pet(document.getElementById('heroPet'), 'walk'), sit = new Pet(document.getElementById('sitPet'), 'sit'), nap = new Pet(document.getElementById('sleepPet'), 'sleep');
+  var heroEl = hero.cv, x = 60, dir = 1, mode = 'walk', modeT = 7000;
+  function hop() { if (!body.classList.contains('fx-dewy') && hero.anim !== 'walk') return; mode = 'stop'; modeT = 1600; hero.play('happy', 'idle'); }
+  heroEl.addEventListener('click', function (e) { e.stopPropagation(); mode = 'stop'; modeT = 1400; hero.play('air', 'happy'); setTimeout(function () { hero.play('happy', 'idle'); }, 360); });
+  var dl = document.getElementById('dlBtn');
+  dl.addEventListener('mouseenter', function () { if (body.classList.contains('fx-dewy')) hop(); });
+  dl.addEventListener('click', function () { if (body.classList.contains('fx-dewy')) hop(); });
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(64, now - last); last = now;
+    var w = heroEl.parentNode.clientWidth - 76;
+    modeT -= dt;
+    if (mode === 'walk') {
+      x += dir * dt * 0.035; if (x > w) { x = w; dir = -1; } if (x < 20) { x = 20; dir = 1; }
+      if (modeT <= 0) { mode = 'rest'; modeT = 4200; hero.play(Math.random() < .5 ? 'sit' : 'idle_look'); }
+    } else if (modeT <= 0) { mode = 'walk'; modeT = 6000 + Math.random() * 5000; hero.play('walk'); if (Math.random() < .5) dir = -dir; }
+    heroEl.style.transform = 'translateX(' + x + 'px)';
+    hero.step(reduce ? 0 : dt); sit.step(reduce ? 0 : dt); nap.step(reduce ? 0 : dt);
+    texture(now, dt);
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- page texture ---------- */
+  var tc = document.getElementById('texCv'), tctx = tc.getContext('2d'), tex = 'dew', TW = 0, TH = 0, TS = 1;
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  var stars = [], nebulae = [], shoot = null, shootT = 4000, blobs = [], drops2 = [], beads = [];
+  function seed() {
+    stars = []; var n = Math.round(innerWidth * innerHeight / 5200);
+    for (var i = 0; i < n; i++) stars.push({ x: Math.random(), y: Math.random() * 2, r: Math.random() < .08 ? rnd(1.2, 1.9) : rnd(.4, 1.1), p: rnd(0, 6.28), sp: rnd(.6, 2), d: rnd(.08, .3) });
+    nebulae = [{ x: .18, y: .5, rx: .5, c: [140, 100, 255] }, { x: .82, y: 1.1, rx: .45, c: [242, 140, 175] }, { x: .35, y: 1.65, rx: .55, c: [90, 200, 190] }, { x: .75, y: .2, rx: .35, c: [120, 120, 255] }];
+    blobs = []; for (var j = 0; j < 6; j++) blobs.push({ x: Math.random(), y: Math.random(), r: rnd(.18, .32), a: rnd(0, 6.28), s: rnd(.00004, .00009), c: j % 3 });
+    drops2 = []; var m = Math.round(innerWidth * innerHeight / 9000);
+    for (var k = 0; k < m; k++) drops2.push({ x: Math.random(), y: Math.random() * 2, r: Math.random() < .12 ? rnd(4, 8) : rnd(1.2, 3.6), e: rnd(.8, 1.15) });
+    beads = [];
+  }
+  function sizeTex() { TS = Math.min(devicePixelRatio || 1, 2); TW = innerWidth; TH = innerHeight; tc.width = TW * TS; tc.height = TH * TS; seed(); }
+  addEventListener('resize', sizeTex); sizeTex();
+  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+  function texture(now, dt) {
+    tctx.setTransform(TS, 0, 0, TS, 0, 0); tctx.clearRect(0, 0, TW, TH);
+    if (tex === 'none') return;
+    var dark = isDark(), t = reduce ? 0 : now, sy = scrollY;
+    if (tex === 'sky') {
+      // galaxy clouds drift with scroll at 10%, stars at 15-30% (parallax)
+      nebulae.forEach(function (n) { var cy = ((n.y * TH - sy * .1) % (TH * 2) + TH * 2) % (TH * 2) - TH * .3, R = n.rx * TW;
+        var g = tctx.createRadialGradient(n.x * TW, cy, 0, n.x * TW, cy, R); g.addColorStop(0, rgba(n.c, dark ? .16 : .16)); g.addColorStop(1, rgba(n.c, 0));
+        tctx.fillStyle = g; tctx.fillRect(n.x * TW - R, cy - R, R * 2, R * 2); });
+      stars.forEach(function (s) { var y = ((s.y * TH - sy * s.d) % (TH * 2) + TH * 2) % (TH * 2); if (y > TH + 4) return;
+        var a = (dark ? .55 : .5) + (dark ? .45 : .35) * Math.sin(s.p + t * .001 * s.sp);
+        tctx.fillStyle = dark ? 'rgba(255,248,235,' + a + ')' : 'rgba(110,80,190,' + a + ')';
+        tctx.beginPath(); tctx.arc(s.x * TW, y, s.r, 0, 6.28); tctx.fill();
+        if (s.r > 1.2) { tctx.globalAlpha = a * .35; tctx.fillRect(s.x * TW - s.r * 3, y - .3, s.r * 6, .6); tctx.fillRect(s.x * TW - .3, y - s.r * 3, .6, s.r * 6); tctx.globalAlpha = 1; } });
+      if (!reduce) { shootT -= dt; if (!shoot && shootT <= 0) { shoot = { x: rnd(.1, .7) * TW, y: rnd(.05, .4) * TH, l: 0 }; shootT = rnd(5000, 11000); }
+        if (shoot) { shoot.l += dt; var k = shoot.l / 900, hx = shoot.x + k * 380, hy = shoot.y + k * 150;
+          var g2 = tctx.createLinearGradient(hx - 120, hy - 47, hx, hy); g2.addColorStop(0, 'rgba(255,255,255,0)'); g2.addColorStop(1, dark ? 'rgba(255,250,240,.9)' : 'rgba(122,85,211,.7)');
+          tctx.strokeStyle = g2; tctx.lineWidth = 1.6; tctx.beginPath(); tctx.moveTo(hx - 120, hy - 47); tctx.lineTo(hx, hy); tctx.stroke(); if (k >= 1) shoot = null; } }
+    } else if (tex === 'liquid') {
+      var cols = dark ? [[140, 100, 255], [242, 140, 175], [80, 190, 200]] : [[170, 140, 245], [240, 150, 185], [120, 200, 210]];
+      blobs.forEach(function (b) { b.a += dt * b.s * 6; var bx = (b.x + Math.cos(b.a) * .08) * TW, by = (b.y + Math.sin(b.a * 1.3) * .1) * TH - (sy * .05 % TH), R = b.r * Math.max(TW, TH);
+        for (var o = -1; o <= 1; o++) { var yy = by + o * TH; var g = tctx.createRadialGradient(bx, yy, 0, bx, yy, R); g.addColorStop(0, rgba(cols[b.c], dark ? .14 : .13)); g.addColorStop(1, rgba(cols[b.c], 0)); tctx.fillStyle = g; tctx.fillRect(bx - R, yy - R, R * 2, R * 2); } });
+      tctx.lineWidth = 1; var L = 16;
+      for (var i = 0; i < L; i++) { var base = (i + .5) / L * TH, ph = i * .7 + t * .00025 + sy * .002;
+        tctx.strokeStyle = dark ? 'rgba(183,155,255,.10)' : 'rgba(122,85,211,.09)'; tctx.beginPath();
+        for (var xx = 0; xx <= TW; xx += 12) { var yv = base + Math.sin(xx * .006 + ph) * 14 + Math.sin(xx * .013 - ph * 1.4) * 7; if (xx) tctx.lineTo(xx, yv); else tctx.moveTo(xx, yv); }
+        tctx.stroke(); }
+    } else if (tex === 'dew') {
+      var tint = dark ? [183, 155, 255] : [122, 85, 211];
+      function drop(x, y, r, e) {
+        tctx.fillStyle = rgba(tint, dark ? .10 : .07); tctx.beginPath(); tctx.ellipse(x, y, r, r * e, 0, 0, 6.28); tctx.fill();
+        tctx.strokeStyle = rgba(tint, dark ? .22 : .16); tctx.lineWidth = .8; tctx.beginPath(); tctx.ellipse(x, y, r, r * e, 0, .2, 2.9); tctx.stroke();
+        tctx.fillStyle = dark ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.9)'; tctx.beginPath(); tctx.arc(x - r * .35, y - r * .35 * e, Math.max(.6, r * .22), 0, 6.28); tctx.fill(); }
+      drops2.forEach(function (d) { var y = ((d.y * TH - sy * .2) % (TH * 2) + TH * 2) % (TH * 2); if (y < TH + 10) drop(d.x * TW, y, d.r, d.e); });
+      if (!reduce && Math.random() < dt / 2600 && beads.length < 3) beads.push({ x: rnd(.03, .97) * TW, y: rnd(-.1, .4) * TH, v: rnd(.03, .06), r: rnd(3, 5), trail: [] });
+      beads = beads.filter(function (b) { b.v = Math.min(.25, b.v + dt * .00004 * Math.random()); b.y += b.v * dt; b.x += Math.sin(b.y * .03) * .15;
+        b.trail.push([b.x, b.y]); if (b.trail.length > 40) b.trail.shift();
+        tctx.strokeStyle = rgba(tint, dark ? .14 : .10); tctx.lineWidth = b.r * .9; tctx.lineCap = 'round'; tctx.beginPath();
+        b.trail.forEach(function (p, i) { if (i) tctx.lineTo(p[0], p[1]); else tctx.moveTo(p[0], p[1]); }); tctx.stroke();
+        drop(b.x, b.y, b.r, 1.15); return b.y < TH + 20; });
+    }
+  }
+
+  /* ---------- tilt + spotlight ---------- */
+  document.querySelectorAll('.tilt').forEach(function (el) {
+    el.addEventListener('mousemove', function (e) { var r = el.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
+      el.style.setProperty('--ry', (px * 10).toFixed(2) + 'deg'); el.style.setProperty('--rx', (-py * 8).toFixed(2) + 'deg'); });
+    el.addEventListener('mouseleave', function () { el.style.setProperty('--ry', '0deg'); el.style.setProperty('--rx', '0deg'); });
+  });
+  document.querySelectorAll('.card').forEach(function (el) {
+    el.addEventListener('mousemove', function (e) { var r = el.getBoundingClientRect(); el.style.setProperty('--mx', (e.clientX - r.left) + 'px'); el.style.setProperty('--my', (e.clientY - r.top) + 'px'); });
+  });
+
+  /* ---------- reveal on scroll (everything stays readable: only parts below the fold start lowered) ---------- */
+  var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting) { en.target.classList.remove('rise'); en.target.classList.add('risen'); io.unobserve(en.target); } }); }, { rootMargin: '0px 0px -12% 0px' }) : null;
+  function setupReveal() {
+    document.querySelectorAll('.rv').forEach(function (el) {
+      el.classList.remove('rise');
+      if (io && body.classList.contains('fx-reveal') && !reduce && el.getBoundingClientRect().top > innerHeight) { el.classList.add('rise'); io.observe(el); }
+    });
+  }
+  setupReveal();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
